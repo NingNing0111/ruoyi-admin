@@ -66,6 +66,7 @@ function handleChange(info) {
       // http 200会走到这里  需要再次判断
       const { response } = file;
       const { code, data, msg = '服务器错误' } = response;
+      console.log('response', response)
       if (code === 200) {
         const { url } = data;
         getDetail(kid.value);
@@ -74,15 +75,14 @@ function handleChange(info) {
         message.error(msg);
       }
       uploading.value = false;
-
       break;
     }
     case 'error': {
       uploading.value = false;
-
       break;
     }
   }
+  getDetail(kid.value);
 }
 
 const data = ref([]);
