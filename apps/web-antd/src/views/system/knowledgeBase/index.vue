@@ -136,8 +136,8 @@ const getList = () => {
   });
 };
 
-const fileScore = ref(0);
-
+const updateFileScore = ref(0);
+const newFileScore = ref(0);
 const headerStyle = {
   textAlign: 'right',
   height: 64,
@@ -228,15 +228,16 @@ const handleFragment = (record) => {
   fileFragmentVisible.value = true;
 };
 
-  const updateScore = (record, fileScore) => {
+  const updateScore = (record) => {
   if(!record.edit) {
     record.edit = true;
     message.info("请设置文档权重");
   }  else {
-    record.score = parseInt(fileScore)
+    record.score = parseInt(updateFileScore.value)
     updateAttachScore(record).then(() => {
       message.info("修改完成");
       record.edit = false;
+      updateFileScore.value = 0;
     })
   }
 }
@@ -326,28 +327,35 @@ const handleSubmit = () => {
       @close="fileVisible = false"
       :width="1000"
     >
-      <Upload
-        :action="uploadUrl"
-        :headers="headers"
-        :show-upload-list="false"
-        accept=".txt,.pdf,.docx,.pptx,.xlsx,.xls,.csv,.json"
-        multiple
-        name="file"
-        :data="{ kid: kid }"
-        @change="handleChange"
-      >
-        <!-- 这里要改成i18n -->
-        <a-button type="primary" style="margin-bottom: 10px">
-          文件上传
-        </a-button>
-      </Upload>
+      <div style="display: flex;">
+        <InputNumber v-model:value="newFileScore" style="margin-right: 20px" :rules="[{ required: true, message: '请输入知识库中检索的条数' }]"/>
+        <Upload
+          :action="uploadUrl"
+          :headers="headers"
+          :show-upload-list="false"
+          accept=".txt,.pdf,.docx,.pptx,.xlsx,.xls,.csv,.json"
+          multiple
+          name="file"
+          :data="{
+            kid: kid,
+            score: newFileScore
+           }"
+          @change="handleChange"
+          :disabled="newFileScore <= 0"
+        >
+          <!-- 这里要改成i18n -->
+          <a-button type="primary" style="margin-bottom: 10px">
+            {{newFileScore > 0 ? '文件上传' : '请输入文档权重'}}
+          </a-button>
+        </Upload>
+      </div>
       <Table :columns="fileColumns" :data-source="fileData">
         <template #bodyCell="{ column, record }">
           <span v-if="column.key === 'action'">
             <span v-if="!record.edit">
               <Button type="primary" @click="handleFragment(record)" style="margin-right: 10px"
               >知识片段</Button>
-            <Button type="primary" @click="updateScore(record, fileScore)" style="margin-right: 10px"
+            <Button type="primary" @click="updateScore(record)" style="margin-right: 10px"
             >设置权重</Button>
             <Popconfirm
               title="确定删除吗？"
@@ -361,12 +369,12 @@ const handleSubmit = () => {
             </Popconfirm>
             </span>
             <span v-else>
-              <Button type="primary" @click="updateScore(record, fileScore)" style="margin-right: 10px"
+              <Button type="primary" @click="updateScore(record)" style="margin-right: 10px"
               >提交</Button>
             </span>
           </span>
           <div v-if="column.key === 'score'">
-            <InputNumber v-if="record.edit" @change="(e) => fileScore = e.target.value" v-model="fileScore"></InputNumber>
+            <InputNumber v-if="record.edit" v-model:value="updateFileScore"></InputNumber>
             <span v-else>{{record.score}}</span>
           </div>
         </template>
