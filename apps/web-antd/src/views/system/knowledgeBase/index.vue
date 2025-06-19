@@ -95,6 +95,9 @@ const defaultFormData = {
   textBlockSize: 300,
   overlapChar: 30,
   vectorModelName: 'weaviate',
+  vectorId: 0,
+  type: null,
+  splitterType: null,
   questionSeparator: '',
   embeddingModelName: 'baai/bge-m3',
   description: '',
@@ -103,6 +106,18 @@ const formData = ref({ ...defaultFormData });
 const getVector = ref([
   { label: 'weaviate', value: 'weaviate' },
   { label: 'milvus', value: 'milvus' },
+]);
+
+const getVectorModelType = ref([
+  { label: '文本知识库', value: 1 },
+  { label: '图片知识库', value: 2 },
+]);
+
+const getSplitterType = ref([
+  { label: '按字符数量进行划分', value: 1 },
+  { label: '按照代码进行划分', value: 2 },
+  { label: '按 Markdown 结构进行划分', value: 3 },
+  { label: '按 Token 数量进行划分', value: 4 },
 ]);
 
 const getVectorModel = ref([
@@ -138,6 +153,10 @@ const columns = [
   { title: '编号', dataIndex: 'kid', key: 'kid' },
   { title: '知识名称', dataIndex: 'kname', key: 'kname' },
   { title: '知识描述', dataIndex: 'description', key: 'description' },
+  { title: '向量数据库id', dataIndex: 'vid', key: 'vid' },
+  { title: '知识库类型', dataIndex: 'type', key: 'type' },
+  { title: '文档划分策略', dataIndex: 'splitterType', key: 'splitterType' },
+  { title: '向量模型', dataIndex: 'embeddingModelName', key: 'embeddingModelName' },
   { title: '操作', key: 'action' },
 ];
 
@@ -153,7 +172,16 @@ const handleDelete = (record) => {
     getList();
   });
 };
-
+const getSplitterTypeText = (record) => {
+  if(record.splitterType == 1)
+      return "按字符数量进行划分";
+  else if(record.splitterType == 2)
+      return "按照代码划分";
+  else if(record.splitterType == 3)
+      return "按 Markdown 结构进行划分"
+  else if(record.splitterType == 4)
+      return "按 Token 数量进行划分"
+};
 // 附件
 const fileVisible = ref(false);
 const fileData = ref([]);
@@ -204,6 +232,7 @@ const handleSubmit = () => {
   formRef.value
     .validate()
     .then(() => {
+      formData.value.vId = parseInt(formData.value.vId);
       knowledgeSave(formData.value).then((res) => {
         message.success('添加成功');
         getList();
@@ -226,6 +255,12 @@ const handleSubmit = () => {
         <LayoutContent :style="contentStyle">
           <Table :columns="columns" :data-source="data">
             <template #bodyCell="{ column, record }">
+              <span v-if="column.key === 'type'">
+                {{record.type == 1 ? '文本知识库' : '图片知识库'}}
+              </span>
+              <span v-if="column.key === 'splitterType'">
+                {{getSplitterTypeText(record)}}
+              </span>
               <span v-if="column.key === 'action'">
                 <Popconfirm
                   title="确定删除吗？"
@@ -304,9 +339,8 @@ const handleSubmit = () => {
               </Button>
             </Popconfirm>
 
-            <Button type="primary" @click="handleFragment(record)"
-              >知识片段</Button
-            >
+            <Butto type="primary" @click="handleFragment(record)"
+              >知识片段</Butto>n
           </span>
         </template>
       </Table>
@@ -374,8 +408,26 @@ const handleSubmit = () => {
         >
           <Select v-model:value="formData.vectorModelName" :options="getVector" />
         </FormItem>
-        <FormItem label="提问分割符" name="questionSeparator">
-          <Input v-model:value="formData.questionSeparator" />
+        <FormItem label="向量数据库id" name="vectorId"
+                  :rules="[
+                    { required: true, message: '请输入向量数据库id' },
+                    { type: 'number', min: 1, message: '向量数据库id必须大于等于1' },
+                  ]"
+        >
+          <InputNumber v-model:value="formData.vectorId" />
+        </FormItem>
+        <FormItem
+          label="知识库类型"
+          name="type"
+          :rules="[{ required: true, message: '请选择知识库类型' }]"
+        >
+          <Select v-model:value="formData.type" :options="getVectorModelType" />
+        </FormItem>
+<!--        <FormItem label="知识库中检索的条数" name="topN" :rules="[{ required: true, message: '请输入知识库中检索的条数' }]">-->
+<!--          <Input v-model:value="formData.topN" />-->
+<!--        </FormItem>-->
+        <FormItem label="请输入文档划分策略" name="splitterType" :rules="[{ required: true, message: '请选择文档划分策略' }]">
+          <Select v-model:value="formData.splitterType" :options="getSplitterType" />
         </FormItem>
         <FormItem
           label="向量模型"
