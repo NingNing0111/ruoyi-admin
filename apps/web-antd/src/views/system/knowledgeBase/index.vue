@@ -29,8 +29,9 @@ import {
   knowledgeDetail,
   knowledgeFileDelete,
   knowledgeFragmentList,
+  updateAttachScore
 } from '#/api/system/knowledgeBase';
-
+import { cloneDeep } from 'lodash-es';
 import { useAppConfig } from '@vben/hooks';
 import { useAccessStore } from '@vben/stores';
 
@@ -54,13 +55,11 @@ function handleChange(info) {
   const status = file?.status;
   // const url = file?.response?.data.url;
   const name = file?.name;
-
   switch (status) {
     case 'uploading': {
       if (!uploading.value) {
         uploading.value = true;
       }
-
       break;
     }
     case 'done': {
@@ -70,6 +69,7 @@ function handleChange(info) {
       if (code === 200) {
         const { url } = data;
         getDetail(kid.value);
+        message.info("上传成功");
       } else {
         message.error(msg);
       }
@@ -136,6 +136,8 @@ const getList = () => {
   });
 };
 
+const fileScore = ref(0);
+
 const headerStyle = {
   textAlign: 'right',
   height: 64,
@@ -193,6 +195,7 @@ const handleAttachment = (record) => {
 const getDetail = (id) => {
   knowledgeDetail(id).then((res) => {
     fileData.value = res.rows;
+    console.log('11111', res.rows)
   });
 };
 // 附件表格
@@ -200,6 +203,7 @@ const fileColumns = [
   { title: '文档编号', dataIndex: 'docId', key: 'docId' },
   { title: '文档名称', dataIndex: 'docName', key: 'docName' },
   { title: '文档类型', dataIndex: 'docType', key: 'docType' },
+  { title: '文档权重', dataIndex: 'score', key: 'score'},
   { title: '操作', key: 'action' },
 ];
 
@@ -223,6 +227,19 @@ const handleFragment = (record) => {
   });
   fileFragmentVisible.value = true;
 };
+
+  const updateScore = (record, fileScore) => {
+  if(!record.edit) {
+    record.edit = true;
+    message.info("请设置文档权重");
+  }  else {
+    record.score = parseInt(fileScore)
+    updateAttachScore(record).then(() => {
+      message.info("修改完成");
+      record.edit = false;
+    })
+  }
+}
 
 // 添加表单引用
 const formRef = ref();
@@ -303,7 +320,6 @@ const handleSubmit = () => {
         </template>
       </Table>
     </Drawer>
-
     <Drawer
       title="知识库附件"
       :visible="fileVisible"
@@ -328,6 +344,11 @@ const handleSubmit = () => {
       <Table :columns="fileColumns" :data-source="fileData">
         <template #bodyCell="{ column, record }">
           <span v-if="column.key === 'action'">
+            <span v-if="!record.edit">
+              <Button type="primary" @click="handleFragment(record)" style="margin-right: 10px"
+              >知识片段</Button>
+            <Button type="primary" @click="updateScore(record, fileScore)" style="margin-right: 10px"
+            >设置权重</Button>
             <Popconfirm
               title="确定删除吗？"
               ok-text="是"
@@ -338,10 +359,16 @@ const handleSubmit = () => {
                 删除附件
               </Button>
             </Popconfirm>
-
-            <Butto type="primary" @click="handleFragment(record)"
-              >知识片段</Butto>n
+            </span>
+            <span v-else>
+              <Button type="primary" @click="updateScore(record, fileScore)" style="margin-right: 10px"
+              >提交</Button>
+            </span>
           </span>
+          <div v-if="column.key === 'score'">
+            <InputNumber v-if="record.edit" @change="(e) => fileScore = e.target.value" v-model="fileScore"></InputNumber>
+            <span v-else>{{record.score}}</span>
+          </div>
         </template>
       </Table>
     </Drawer>

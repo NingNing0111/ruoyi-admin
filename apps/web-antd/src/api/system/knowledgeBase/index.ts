@@ -7,6 +7,7 @@ enum Api {
   knowledgeDetail = '/knowledge/detail',
   knowledgeFileDelete = '/knowledge/attach/remove',
   knowledgeFragmentList = '/knowledge/fragment/list',
+  updateAttachScore = '/knowledge/updateAttachScore'
 }
 
 // 获取列表
@@ -37,4 +38,8 @@ export function knowledgeFileDelete(id: any) {
 // 知识片段列表
 export function knowledgeFragmentList(id: any) {
   return requestClient.get<any>(`${Api.knowledgeFragmentList}/${id}`);
+}
+
+export function updateAttachScore(data: any) {
+  return requestClient.post<any>(Api.updateAttachScore, data);
 }
