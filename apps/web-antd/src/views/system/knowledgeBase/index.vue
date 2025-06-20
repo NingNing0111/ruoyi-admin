@@ -451,32 +451,16 @@ const handleSubmit = () => {
             style="width: 100%"
           />
         </FormItem>
-        <FormItem
-          label="文本块大小"
-          name="textBlockSize"
-          :rules="[{ required: true, message: '请输入文本块大小' }]"
-        >
-          <InputNumber
-            v-model:value="formData.textBlockSize"
-            style="width: 100%"
-          />
-        </FormItem>
-        <FormItem label="重叠字符" name="overlapChar">
-          <InputNumber
-            v-model:value="formData.overlapChar"
-            style="width: 100%"
-          />
-        </FormItem>
-        <FormItem
-          label="向量数据库类型"
-          name="vectorModelName"
-          :rules="[{ required: true, message: '请选择向量数据库类型' }]"
-        >
-          <Select
-            v-model:value="formData.vectorModelName"
-            :options="getVector"
-          />
-        </FormItem>
+<!--        <FormItem-->
+<!--          label="向量数据库类型"-->
+<!--          name="vectorModelName"-->
+<!--          :rules="[{ required: true, message: '请选择向量数据库类型' }]"-->
+<!--        >-->
+<!--          <Select-->
+<!--            v-model:value="formData.vectorModelName"-->
+<!--            :options="getVector"-->
+<!--          />-->
+<!--        </FormItem>-->
         <FormItem
           label="向量数据库"
           name="vectorId"
@@ -508,6 +492,23 @@ const handleSubmit = () => {
           <Select
             v-model:value="formData.splitterType"
             :options="getSplitterType"
+          />
+        </FormItem>
+        <FormItem
+          label="文本块大小"
+          name="textBlockSize"
+          v-if="formData.splitterType === 1"
+          :rules="[{ required: true, message: '请输入文本块大小' }]"
+        >
+          <InputNumber
+            v-model:value="formData.textBlockSize"
+            style="width: 100%"
+          />
+        </FormItem>
+        <FormItem label="重叠字符" name="overlapChar" v-if="formData.splitterType === 1" :rules="[{ required: true, message: '请输入重叠字符' }]">
+          <InputNumber
+            v-model:value="formData.overlapChar"
+            style="width: 100%"
           />
         </FormItem>
         <FormItem
