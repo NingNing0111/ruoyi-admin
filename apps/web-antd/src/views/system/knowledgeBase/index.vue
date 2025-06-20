@@ -29,7 +29,8 @@ import {
   knowledgeDetail,
   knowledgeFileDelete,
   knowledgeFragmentList,
-  updateAttachScore
+  updateAttachScore,
+  listVectorLabelInfo
 } from '#/api/system/knowledgeBase';
 import { cloneDeep } from 'lodash-es';
 import { useAppConfig } from '@vben/hooks';
@@ -69,12 +70,13 @@ function handleChange(info) {
       console.log('response', response)
       if (code === 200) {
         const { url } = data;
-        getDetail(kid.value);
         message.info("上传成功");
       } else {
         message.error(msg);
       }
-      uploading.value = false;
+      getDetail(kid.value).then(() => {
+        uploading.value = false;
+      });
       break;
     }
     case 'error': {
@@ -82,7 +84,6 @@ function handleChange(info) {
       break;
     }
   }
-  getDetail(kid.value);
 }
 
 const data = ref([]);
@@ -95,7 +96,7 @@ const defaultFormData = {
   textBlockSize: 300,
   overlapChar: 30,
   vectorModelName: 'weaviate',
-  vectorId: 0,
+  vectorId: null,
   type: null,
   splitterType: null,
   questionSeparator: '',
@@ -126,6 +127,14 @@ const getVectorModel = ref([
   { label: 'baai/bge-m3', value: 'baai/bge-m3' },
 ]);
 
+const vectorDBList = ref([]);
+
+const getVectorDB = (labels) => {
+  listVectorLabelInfo(labels).then(res => {
+    vectorDBList.value = res
+  })
+}
+
 onMounted(() => {
   getList();
 });
@@ -133,11 +142,12 @@ onMounted(() => {
 const getList = () => {
   knowledgeList().then((res) => {
     data.value = res.rows;
+    console.log('res', res.rows)
   });
 };
 
 const updateFileScore = ref(0);
-const newFileScore = ref(0);
+const newFileScore = ref(null);
 const headerStyle = {
   textAlign: 'right',
   height: 64,
@@ -155,7 +165,7 @@ const columns = [
   { title: '编号', dataIndex: 'kid', key: 'kid' },
   { title: '知识名称', dataIndex: 'kname', key: 'kname' },
   { title: '知识描述', dataIndex: 'description', key: 'description' },
-  { title: '向量数据库id', dataIndex: 'vid', key: 'vid' },
+  { title: '向量数据库描述', dataIndex: 'label', key: 'label' },
   { title: '知识库类型', dataIndex: 'type', key: 'type' },
   { title: '文档划分策略', dataIndex: 'splitterType', key: 'splitterType' },
   { title: '向量模型', dataIndex: 'embeddingModelName', key: 'embeddingModelName' },
@@ -166,6 +176,7 @@ const columns = [
 const handleAdd = () => {
   formData.value = { ...defaultFormData };
   drawerVisible.value = true;
+  getVectorDB("");
 };
 
 // 删除
@@ -187,6 +198,7 @@ const getSplitterTypeText = (record) => {
 // 附件
 const fileVisible = ref(false);
 const fileData = ref([]);
+const labels = ref("");
 const handleAttachment = (record) => {
   getDetail(record.id);
   fileVisible.value = true;
@@ -227,6 +239,10 @@ const handleFragment = (record) => {
   });
   fileFragmentVisible.value = true;
 };
+
+const filterVectorDB = () => {
+  return vectorDBList.value;
+}
 
   const updateScore = (record) => {
   if(!record.edit) {
@@ -341,11 +357,11 @@ const handleSubmit = () => {
             score: newFileScore
            }"
           @change="handleChange"
-          :disabled="newFileScore <= 0"
+          :disabled="newFileScore == null || newFileScore <= 0"
         >
           <!-- 这里要改成i18n -->
           <a-button type="primary" style="margin-bottom: 10px">
-            {{newFileScore > 0 ? '文件上传' : '请输入文档权重'}}
+            {{(newFileScore != null && newFileScore > 0) ? '文件上传' : '请输入文档权重'}}
           </a-button>
         </Upload>
       </div>
@@ -437,19 +453,19 @@ const handleSubmit = () => {
           />
         </FormItem>
         <FormItem
-          label="向量库"
+          label="向量数据库类型"
           name="vectorModelName"
-          :rules="[{ required: true, message: '请选择向量库' }]"
+          :rules="[{ required: true, message: '请选择向量数据库类型' }]"
         >
           <Select v-model:value="formData.vectorModelName" :options="getVector" />
         </FormItem>
-        <FormItem label="向量数据库id" name="vectorId"
+        <FormItem label="向量数据库" name="vectorId"
                   :rules="[
-                    { required: true, message: '请输入向量数据库id' },
-                    { type: 'number', min: 1, message: '向量数据库id必须大于等于1' },
+                    { required: true, message: '请选择已有向量数据库' },
                   ]"
         >
-          <InputNumber v-model:value="formData.vectorId" />
+
+          <Select show-search @search="getVectorDB" v-model:value="formData.vectorId" :filter-option="filterVectorDB" :options="vectorDBList" />
         </FormItem>
         <FormItem
           label="知识库类型"
