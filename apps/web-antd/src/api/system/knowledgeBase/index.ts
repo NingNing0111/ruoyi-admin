@@ -7,7 +7,8 @@ enum Api {
   knowledgeDetail = '/knowledge/detail',
   knowledgeFileDelete = '/knowledge/attach/remove',
   knowledgeFragmentList = '/knowledge/fragment/list',
-  updateAttachScore = '/knowledge/updateAttachScore'
+  updateAttachScore = '/knowledge/updateAttachScore',
+  listVectorLabelInfo = '/vector/db/labels'
 }
 
 // 获取列表
@@ -42,4 +43,11 @@ export function knowledgeFragmentList(id: any) {
 
 export function updateAttachScore(data: any) {
   return requestClient.post<any>(Api.updateAttachScore, data);
+}
+
+export function listVectorLabelInfo(keyword: String) {
+  console.log('发送', keyword)
+  return requestClient.get<any>(Api.listVectorLabelInfo, {params: {
+    keyword: keyword
+    }});
 }

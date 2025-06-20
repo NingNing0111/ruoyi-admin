@@ -29,7 +29,8 @@ import {
   knowledgeDetail,
   knowledgeFileDelete,
   knowledgeFragmentList,
-  updateAttachScore
+  updateAttachScore,
+  listVectorLabelInfo,
 } from '#/api/system/knowledgeBase';
 import { cloneDeep } from 'lodash-es';
 import { useAppConfig } from '@vben/hooks';
@@ -66,15 +67,16 @@ function handleChange(info) {
       // http 200会走到这里  需要再次判断
       const { response } = file;
       const { code, data, msg = '服务器错误' } = response;
-      console.log('response', response)
+      console.log('response', response);
       if (code === 200) {
         const { url } = data;
-        getDetail(kid.value);
-        message.info("上传成功");
+        message.info('上传成功');
       } else {
         message.error(msg);
       }
-      uploading.value = false;
+      getDetail(kid.value).then(() => {
+        uploading.value = false;
+      });
       break;
     }
     case 'error': {
@@ -82,7 +84,6 @@ function handleChange(info) {
       break;
     }
   }
-  getDetail(kid.value);
 }
 
 const data = ref([]);
@@ -95,7 +96,7 @@ const defaultFormData = {
   textBlockSize: 300,
   overlapChar: 30,
   vectorModelName: 'weaviate',
-  vectorId: 0,
+  vectorId: null,
   type: null,
   splitterType: null,
   questionSeparator: '',
@@ -126,6 +127,14 @@ const getVectorModel = ref([
   { label: 'baai/bge-m3', value: 'baai/bge-m3' },
 ]);
 
+const vectorDBList = ref([]);
+
+const getVectorDB = (labels) => {
+  listVectorLabelInfo(labels).then((res) => {
+    vectorDBList.value = res;
+  });
+};
+
 onMounted(() => {
   getList();
 });
@@ -133,11 +142,12 @@ onMounted(() => {
 const getList = () => {
   knowledgeList().then((res) => {
     data.value = res.rows;
+    console.log('res', res.rows);
   });
 };
 
 const updateFileScore = ref(0);
-const newFileScore = ref(0);
+const newFileScore = ref(null);
 const headerStyle = {
   textAlign: 'right',
   height: 64,
@@ -155,10 +165,14 @@ const columns = [
   { title: '编号', dataIndex: 'kid', key: 'kid' },
   { title: '知识名称', dataIndex: 'kname', key: 'kname' },
   { title: '知识描述', dataIndex: 'description', key: 'description' },
-  { title: '向量数据库id', dataIndex: 'vid', key: 'vid' },
+  { title: '向量数据库描述', dataIndex: 'label', key: 'label' },
   { title: '知识库类型', dataIndex: 'type', key: 'type' },
   { title: '文档划分策略', dataIndex: 'splitterType', key: 'splitterType' },
-  { title: '向量模型', dataIndex: 'embeddingModelName', key: 'embeddingModelName' },
+  {
+    title: '向量模型',
+    dataIndex: 'embeddingModelName',
+    key: 'embeddingModelName',
+  },
   { title: '操作', key: 'action' },
 ];
 
@@ -166,6 +180,7 @@ const columns = [
 const handleAdd = () => {
   formData.value = { ...defaultFormData };
   drawerVisible.value = true;
+  getVectorDB('');
 };
 
 // 删除
@@ -175,18 +190,15 @@ const handleDelete = (record) => {
   });
 };
 const getSplitterTypeText = (record) => {
-  if(record.splitterType == 1)
-      return "按字符数量进行划分";
-  else if(record.splitterType == 2)
-      return "按照代码划分";
-  else if(record.splitterType == 3)
-      return "按 Markdown 结构进行划分"
-  else if(record.splitterType == 4)
-      return "按 Token 数量进行划分"
+  if (record.splitterType == 1) return '按字符数量进行划分';
+  else if (record.splitterType == 2) return '按照代码划分';
+  else if (record.splitterType == 3) return '按 Markdown 结构进行划分';
+  else if (record.splitterType == 4) return '按 Token 数量进行划分';
 };
 // 附件
 const fileVisible = ref(false);
 const fileData = ref([]);
+const labels = ref('');
 const handleAttachment = (record) => {
   getDetail(record.id);
   fileVisible.value = true;
@@ -195,7 +207,7 @@ const handleAttachment = (record) => {
 const getDetail = (id) => {
   knowledgeDetail(id).then((res) => {
     fileData.value = res.rows;
-    console.log('11111', res.rows)
+    console.log('11111', res.rows);
   });
 };
 // 附件表格
@@ -203,7 +215,7 @@ const fileColumns = [
   { title: '文档编号', dataIndex: 'docId', key: 'docId' },
   { title: '文档名称', dataIndex: 'docName', key: 'docName' },
   { title: '文档类型', dataIndex: 'docType', key: 'docType' },
-  { title: '文档权重', dataIndex: 'score', key: 'score'},
+  { title: '文档权重', dataIndex: 'score', key: 'score' },
   { title: '操作', key: 'action' },
 ];
 
@@ -228,19 +240,23 @@ const handleFragment = (record) => {
   fileFragmentVisible.value = true;
 };
 
-  const updateScore = (record) => {
-  if(!record.edit) {
+const filterVectorDB = () => {
+  return vectorDBList.value;
+};
+
+const updateScore = (record) => {
+  if (!record.edit) {
     record.edit = true;
-    message.info("请设置文档权重");
-  }  else {
-    record.score = parseInt(updateFileScore.value)
+    message.info('请设置文档权重');
+  } else {
+    record.score = parseInt(updateFileScore.value);
     updateAttachScore(record).then(() => {
-      message.info("修改完成");
+      message.info('修改完成');
       record.edit = false;
       updateFileScore.value = 0;
-    })
+    });
   }
-}
+};
 
 // 添加表单引用
 const formRef = ref();
@@ -274,10 +290,10 @@ const handleSubmit = () => {
           <Table :columns="columns" :data-source="data">
             <template #bodyCell="{ column, record }">
               <span v-if="column.key === 'type'">
-                {{record.type == 1 ? '文本知识库' : '图片知识库'}}
+                {{ record.type == 1 ? '文本知识库' : '图片知识库' }}
               </span>
               <span v-if="column.key === 'splitterType'">
-                {{getSplitterTypeText(record)}}
+                {{ getSplitterTypeText(record) }}
               </span>
               <span v-if="column.key === 'action'">
                 <Popconfirm
@@ -327,8 +343,12 @@ const handleSubmit = () => {
       @close="fileVisible = false"
       :width="1000"
     >
-      <div style="display: flex;">
-        <InputNumber v-model:value="newFileScore" style="margin-right: 20px" :rules="[{ required: true, message: '请输入知识库中检索的条数' }]"/>
+      <div style="display: flex">
+        <InputNumber
+          v-model:value="newFileScore"
+          style="margin-right: 20px"
+          :rules="[{ required: true, message: '请输入知识库中检索的条数' }]"
+        />
         <Upload
           :action="uploadUrl"
           :headers="headers"
@@ -338,14 +358,18 @@ const handleSubmit = () => {
           name="file"
           :data="{
             kid: kid,
-            score: newFileScore
-           }"
+            score: newFileScore,
+          }"
           @change="handleChange"
-          :disabled="newFileScore <= 0"
+          :disabled="newFileScore == null || newFileScore <= 0"
         >
           <!-- 这里要改成i18n -->
           <a-button type="primary" style="margin-bottom: 10px">
-            {{newFileScore > 0 ? '文件上传' : '请输入文档权重'}}
+            {{
+              newFileScore != null && newFileScore > 0
+                ? '文件上传'
+                : '请输入文档权重'
+            }}
           </a-button>
         </Upload>
       </div>
@@ -353,29 +377,44 @@ const handleSubmit = () => {
         <template #bodyCell="{ column, record }">
           <span v-if="column.key === 'action'">
             <span v-if="!record.edit">
-              <Button type="primary" @click="handleFragment(record)" style="margin-right: 10px"
-              >知识片段</Button>
-            <Button type="primary" @click="updateScore(record)" style="margin-right: 10px"
-            >设置权重</Button>
-            <Popconfirm
-              title="确定删除吗？"
-              ok-text="是"
-              cancel-text="否"
-              @confirm="handleDeleteFile(record)"
-            >
-              <Button type="primary" danger style="margin-right: 10px">
-                删除附件
-              </Button>
-            </Popconfirm>
+              <Button
+                type="primary"
+                @click="handleFragment(record)"
+                style="margin-right: 10px"
+                >知识片段</Button
+              >
+              <Button
+                type="primary"
+                @click="updateScore(record)"
+                style="margin-right: 10px"
+                >设置权重</Button
+              >
+              <Popconfirm
+                title="确定删除吗？"
+                ok-text="是"
+                cancel-text="否"
+                @confirm="handleDeleteFile(record)"
+              >
+                <Button type="primary" danger style="margin-right: 10px">
+                  删除附件
+                </Button>
+              </Popconfirm>
             </span>
             <span v-else>
-              <Button type="primary" @click="updateScore(record)" style="margin-right: 10px"
-              >提交</Button>
+              <Button
+                type="primary"
+                @click="updateScore(record)"
+                style="margin-right: 10px"
+                >提交</Button
+              >
             </span>
           </span>
           <div v-if="column.key === 'score'">
-            <InputNumber v-if="record.edit" v-model:value="updateFileScore"></InputNumber>
-            <span v-else>{{record.score}}</span>
+            <InputNumber
+              v-if="record.edit"
+              v-model:value="updateFileScore"
+            ></InputNumber>
+            <span v-else>{{ record.score }}</span>
           </div>
         </template>
       </Table>
@@ -401,10 +440,7 @@ const handleSubmit = () => {
         >
           <Input v-model:value="formData.kname" />
         </FormItem>
-        <FormItem
-          label="分隔符"
-          name="knowledgeSeparator"
-        >
+        <FormItem label="分隔符" name="knowledgeSeparator">
           <Input v-model:value="formData.knowledgeSeparator" />
         </FormItem>
         <FormItem
@@ -427,29 +463,34 @@ const handleSubmit = () => {
             style="width: 100%"
           />
         </FormItem>
-        <FormItem
-          label="重叠字符"
-          name="overlapChar"
-        >
+        <FormItem label="重叠字符" name="overlapChar">
           <InputNumber
             v-model:value="formData.overlapChar"
             style="width: 100%"
           />
         </FormItem>
         <FormItem
-          label="向量库"
+          label="向量数据库类型"
           name="vectorModelName"
-          :rules="[{ required: true, message: '请选择向量库' }]"
+          :rules="[{ required: true, message: '请选择向量数据库类型' }]"
         >
-          <Select v-model:value="formData.vectorModelName" :options="getVector" />
+          <Select
+            v-model:value="formData.vectorModelName"
+            :options="getVector"
+          />
         </FormItem>
-        <FormItem label="向量数据库id" name="vectorId"
-                  :rules="[
-                    { required: true, message: '请输入向量数据库id' },
-                    { type: 'number', min: 1, message: '向量数据库id必须大于等于1' },
-                  ]"
+        <FormItem
+          label="向量数据库"
+          name="vectorId"
+          :rules="[{ required: true, message: '请选择已有向量数据库' }]"
         >
-          <InputNumber v-model:value="formData.vectorId" />
+          <Select
+            show-search
+            @search="getVectorDB"
+            v-model:value="formData.vectorId"
+            :filter-option="filterVectorDB"
+            :options="vectorDBList"
+          />
         </FormItem>
         <FormItem
           label="知识库类型"
@@ -458,11 +499,18 @@ const handleSubmit = () => {
         >
           <Select v-model:value="formData.type" :options="getVectorModelType" />
         </FormItem>
-<!--        <FormItem label="知识库中检索的条数" name="topN" :rules="[{ required: true, message: '请输入知识库中检索的条数' }]">-->
-<!--          <Input v-model:value="formData.topN" />-->
-<!--        </FormItem>-->
-        <FormItem label="请输入文档划分策略" name="splitterType" :rules="[{ required: true, message: '请选择文档划分策略' }]">
-          <Select v-model:value="formData.splitterType" :options="getSplitterType" />
+        <!--        <FormItem label="知识库中检索的条数" name="topN" :rules="[{ required: true, message: '请输入知识库中检索的条数' }]">-->
+        <!--          <Input v-model:value="formData.topN" />-->
+        <!--        </FormItem>-->
+        <FormItem
+          label="请输入文档划分策略"
+          name="splitterType"
+          :rules="[{ required: true, message: '请选择文档划分策略' }]"
+        >
+          <Select
+            v-model:value="formData.splitterType"
+            :options="getSplitterType"
+          />
         </FormItem>
         <FormItem
           label="向量模型"
