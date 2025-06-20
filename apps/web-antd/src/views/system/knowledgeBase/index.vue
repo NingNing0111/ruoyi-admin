@@ -74,9 +74,6 @@ function handleChange(info) {
       } else {
         message.error(msg);
       }
-      getDetail(kid.value).then(() => {
-        uploading.value = false;
-      });
       break;
     }
     case 'error': {
@@ -84,6 +81,7 @@ function handleChange(info) {
       break;
     }
   }
+  getDetail(kid.value);
 }
 
 const data = ref([]);
